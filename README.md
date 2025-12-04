@@ -1,10 +1,9 @@
-CL-lidar-litterfall
+## CL-lidar-litterfall
 
 xxx
 
 The files in the `spatial_files` folder should contain these files :
 
-# files
 ```
 spatial_files
 |- CHM_2021_clip.tif
