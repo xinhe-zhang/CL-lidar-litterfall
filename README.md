@@ -1,8 +1,7 @@
 ## CL-lidar-litterfall
 
-xxx
 
-The files in the `spatial_files` folder should contain these files :
+The files in the `spatial_files` folder should contain these files, which can be downloaded from here:
 
 ```
 spatial_files
