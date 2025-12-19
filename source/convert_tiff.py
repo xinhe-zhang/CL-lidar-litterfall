@@ -11,7 +11,7 @@ import os
 import pyproj
 import sys # <<< Keep sys module import
 
-# --- NEW: Set PROJ_LIB environment variable to fix proj.db not found issue ---
+# Set PROJ_LIB environment variable to fix proj.db not found issue ---
 try:
     proj_data_dir = pyproj.datadir.get_data_dir()
     os.environ['PROJ_LIB'] = proj_data_dir
@@ -35,23 +35,22 @@ while True:
         exit()
 
 # --- 1b. Set parameters ---
-# YEAR = 2023 # <<< REMOVED: Year is now provided by input
 
 # <<< ADD: Set your Shapefile path >>>
-SHAPEFILE_PATH = "./CLM.shp" 
+SHAPEFILE_PATH = "../spatial files/CLM.shp" 
 
 # <<< ADD: Set CHM mask image path >>>
 # !!! This image will be used to mask the output result !!!
-CHM_RASTER_FILE = "./CHM_2021_clip.tif" 
+CHM_RASTER_FILE = "../spatial files/CHM_2021_clip.tif" 
 
 # --- Dynamically generate file and directory names ---
-SOURCE_RASTER_FILE = f"mL_map_{YEAR}.tif" 
+SOURCE_RASTER_FILE = f"../spatial files/mL_map_{YEAR}.tif" 
 
 # <<< MODIFIED: Ensure directory name matches the first script >>>
 # <<< MODIFIED: Dynamically use year >>>
-PREDICTION_DIR = Path(f"predict_litterfall_chunks_{YEAR}") 
+PREDICTION_DIR = Path(f"../predict_litterfall_chunks_{YEAR}") 
 
-OUTPUT_GEOTIFF_DIR = Path("geotiff_results") 
+OUTPUT_GEOTIFF_DIR = Path("../geotiff_results") 
 BATCH_SIZE = 100
 # ===================================================================
 
@@ -127,7 +126,7 @@ clip_geoms = gdf.geometry.values
 
 # --- 5. Use Memory-mapped files ---
 print(">>> Step 5/7: Creating memory-mapped files...")
-temp_dir = Path("temp_arrays")
+temp_dir = Path("../temp_arrays")
 temp_dir.mkdir(exist_ok=True)
 
 q025_mmap = np.memmap(temp_dir / 'q025.dat', dtype=np.float32, mode='w+', shape=(n_total_cells,))
@@ -170,7 +169,6 @@ for batch_idx in tqdm(range(total_batches), desc="Processing batches"):
             cell_ids = df['cell_id'].values
             
             # --- Estimation removed ---
-            # (Old estimation code removed)
             
             # --- Direct read ---
             q025_mmap[cell_ids] = df['q025'].values
@@ -210,7 +208,7 @@ def process_and_write_geotiff(mmap_array, output_path, source_meta, source_shape
     # 1. Reshape 1D mmap array to 2D image
     full_data = np.array(mmap_array).reshape(source_shape)
     
-    # <<< NEW: Apply CHM mask >>>
+    # Apply CHM mask
     print("       - Applying CHM mask...")
     full_data[chm_mask_array] = 0 # (Set NaN/Nodata areas to 0)
     

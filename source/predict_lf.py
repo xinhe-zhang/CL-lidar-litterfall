@@ -19,9 +19,9 @@ if __name__ == '__main__':
 
     # ML raster files (mL is the input variable)
     RASTER_FILES_ML = {
-        2021: "./mL_map_2021.tif",
-        2022: "./mL_map_2022.tif",
-        2023: "./mL_map_2023.tif"
+        2021: "../spatial files/mL_map_2021.tif",
+        2022: "../spatial files/mL_map_2022.tif",
+        2023: "../spatial files/mL_map_2023.tif"
     }
     
     # Radiation anomalies (ERA5 anom)
@@ -34,8 +34,7 @@ if __name__ == '__main__':
     # Posteriors from R (brms model output)
     POSTERIOR_SAMPLES_FILE = "./posterior_samples_fit4_with_SW.csv"
     
-    # Output folder
-    OUTPUT_DIR = Path("Predict_litterfall_chunks_ERA5_SW")
+    
 
     print(">>> (MAIN) Preparing output directory...")
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -84,6 +83,9 @@ if __name__ == '__main__':
         print(f"\n{'='*60}")
         print(f">>> Starting processing for year {year}")
         print(f"{'='*60}")
+
+        # Output folder
+        OUTPUT_DIR = Path(f"../fpredict_litterfall_chunks_{year}")
 
         # Start timer for the year
         year_start_time = time.time()
