@@ -21,6 +21,7 @@ spatial_files
 |- CLM.shx
 ```
 The project relies on the following core libraries for spatial data processing and GPU acceleration:
+```
 affine==2.4.0
 attrs==25.3.0
 certifi==2025.8.3
@@ -43,5 +44,5 @@ shapely==2.1.2
 six==1.17.0
 tqdm==4.67.1
 tzdata==2025.2
-
+```
 
