@@ -46,5 +46,8 @@ tqdm==4.67.1
 tzdata==2025.2
 ```
 
-To open the venv type : 'source ./venv_litterfall/bin/activate'
+To open the venv, type :
+```
+source ./venv_litterfall/bin/activate
+```
 
