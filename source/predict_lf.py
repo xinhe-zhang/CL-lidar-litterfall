@@ -26,19 +26,15 @@ if __name__ == '__main__':
     
     # Radiation anomalies (ERA5 anom)
     ANOM_VALUES_PER_YEAR = {
-        2021: 0.114558259,  
-        2022: -0.114476411, 
-        2023: -0.022922132 
+        2021: 0.110760024,
+        2022: -0.106794241,
+        2023: -0.029048706
     }
 
     # Posteriors from R (brms model output)
-    POSTERIOR_SAMPLES_FILE = "./posterior_samples_fit4_with_SW.csv"
+    POSTERIOR_SAMPLES_FILE = "./posterior_samples_m3.csv"
     
-    
-
-    print(">>> (MAIN) Preparing output directory...")
-    OUTPUT_DIR.mkdir(exist_ok=True)
-    print(f">>> Output directory '{OUTPUT_DIR}' is ready.")
+    print("version : 26.04.16")
 
     print(">>> (MAIN) Importing brms model posterior samples...")
     try:
@@ -53,23 +49,38 @@ if __name__ == '__main__':
     try:
         # 'b_b_Intercept' (population level b)
         b_b_gpu = cp.asarray(posterior_samples['b_b_Intercept'].values, dtype=cp.float32)
-        
+
         # 'b_trL_Intercept' (population level trL)
         b_trl_intercept_gpu = cp.asarray(posterior_samples['b_trL_Intercept'].values, dtype=cp.float32)
 
         # Radiation anomaly's effect on trL
-        col_name_anom = 'b_trL_anom' 
+        col_name_anom = 'b_trL_anom'
         if col_name_anom in posterior_samples.columns:
             b_trL_anom_gpu = cp.asarray(posterior_samples[col_name_anom].values, dtype=cp.float32)
             print(f">>> Successfully loaded '{col_name_anom}' parameter.")
         else:
             print(f"Error: Cannot find required column '{col_name_anom}'.")
-            print(">>> Detected 'fit4_with_SW' model. Please ensure the R-exported column name is 'b_trL_anom'.")
+            print(">>> Please ensure the R-exported column name is 'b_trL_anom' (from fit_m3 in 20250312_Cox_brms.R).")
             sys.exit(1)
-            
+
+        # Year-level random effects for b  (b ~ 1 + (1 | year) in m3)
+        YEAR_RE_COLS = {
+            2021: 'r_year__b[2021,Intercept]',
+            2022: 'r_year__b[2022,Intercept]',
+            2023: 'r_year__b[2023,Intercept]',
+        }
+        b_year_re_gpu = {}
+        for yr, col in YEAR_RE_COLS.items():
+            if col not in posterior_samples.columns:
+                print(f"Error: Cannot find required column '{col}'.")
+                print(">>> Re-export posterior_samples_m3.csv from R with year_re_cols included.")
+                sys.exit(1)
+            b_year_re_gpu[yr] = cp.asarray(posterior_samples[col].values, dtype=cp.float32)
+            print(f">>> Successfully loaded '{col}'.")
+
     except KeyError as e:
         print(f"Error: Cannot find required column: {e}")
-        print(">>> Please ensure the parameter names for 'formula_with_SW' (b, trL, anom) are correct.")
+        print(">>> Please ensure the posterior CSV was exported from fit_m3 with required_cols: b_b_Intercept, b_trL_Intercept, b_trL_anom, r_year__b[YYYY,Intercept].")
         sys.exit(1)
 
     print(">>> Successfully loaded model parameters into GPU.")
@@ -85,7 +96,8 @@ if __name__ == '__main__':
         print(f"{'='*60}")
 
         # Output folder
-        OUTPUT_DIR = Path(f"../fpredict_litterfall_chunks_{year}")
+        OUTPUT_DIR = Path(f"../predict_litterfall_chunks_{year}")
+        OUTPUT_DIR.mkdir(exist_ok=True)
 
         # Start timer for the year
         year_start_time = time.time()
@@ -171,10 +183,12 @@ if __name__ == '__main__':
         else:
             print(">>> No completed progress found. Starting from scratch.")
 
-        print(f">>> Pre-calculating trL parameter for year {year}...")
+        print(f">>> Pre-calculating trL and effective b for year {year}...")
         # trL = b_trL_Intercept + anom * b_trL_anom
         trL_gpu = b_trl_intercept_gpu + (anom_value_for_year * b_trL_anom_gpu)
-        print(">>> trL parameter calculation complete.")
+        # Effective b = population intercept + year random effect  (b ~ 1 + (1 | year))
+        b_b_year_gpu = b_b_gpu + b_year_re_gpu[year]
+        print(">>> trL and effective b calculation complete.")
 
         for i in tqdm(range(1, total_chunks + 1), desc=f"Processing Year {year}", unit="chunk"):
             if i in completed_chunks:
@@ -209,9 +223,9 @@ if __name__ == '__main__':
                         batch_start = batch_idx * POSTERIOR_BATCH_SIZE
                         batch_end = min(batch_start + POSTERIOR_BATCH_SIZE, n_posterior_samples)
                         
-                        # Get the pre-calculated trL batch
+                        # Get the pre-calculated trL and effective b batches
                         trL_batch = trL_gpu[batch_start:batch_end]
-                        b_b_batch = b_b_gpu[batch_start:batch_end]
+                        b_b_batch = b_b_year_gpu[batch_start:batch_end]
                         
                         # The prediction formula:
                         # litterfall_sum = exp(mL * (trL_Intercept + anom * b_trL_anom) + b_b_Intercept)
@@ -282,7 +296,7 @@ if __name__ == '__main__':
                 continue
 
         # Release resources for the year
-        del df_predict, trL_gpu
+        del df_predict, trL_gpu, b_b_year_gpu
         cp.get_default_memory_pool().free_all_blocks()
         gc.collect()
 
@@ -290,7 +304,7 @@ if __name__ == '__main__':
         print(f"\n>>> Year {year} processing complete! Time elapsed: {(year_end_time - year_start_time) / 60:.2f} minutes")
 
     # Release main parameters on GPU
-    del b_b_gpu, b_trl_intercept_gpu, b_trL_anom_gpu
+    del b_b_gpu, b_trl_intercept_gpu, b_trL_anom_gpu, b_year_re_gpu
     cp.get_default_memory_pool().free_all_blocks()
 
     overall_end_time = time.time()
